@@ -1,0 +1,5 @@
+import {env} from 'cloudflare:workers';
+function db(){if(!env.DB)throw Error('Submission log unavailable');return env.DB;}
+export async function recordSubmission(requestId:string,input:string,address:string){await db().prepare('INSERT INTO submissions (request_id,input,address,submitted_at,status) VALUES (?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING').bind(requestId,input,address,Date.now(),'SCANNING').run();}
+export async function finishSubmission(requestId:string,status:string,symbol:string|null,verdict:string|null){await db().prepare('UPDATE submissions SET status=?,symbol=?,verdict=? WHERE request_id=?').bind(status,symbol,verdict,requestId).run();}
+export async function listSubmissions(before:number){const query=before?'SELECT id,input,address,submitted_at AS submittedAt,status,symbol,verdict FROM submissions WHERE id < ? ORDER BY id DESC LIMIT 16':'SELECT id,input,address,submitted_at AS submittedAt,status,symbol,verdict FROM submissions ORDER BY id DESC LIMIT 16';return (before?db().prepare(query).bind(before):db().prepare(query)).all();}

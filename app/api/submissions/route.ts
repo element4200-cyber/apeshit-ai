@@ -1,0 +1,2 @@
+import {listSubmissions} from '../../../lib/submissions';
+export async function GET(req:Request){try{const cursor=new URL(req.url).searchParams.get('before');const before=cursor?Number(cursor):0;if(!Number.isSafeInteger(before)||before<0)return Response.json({error:'Invalid history cursor'},{status:400});const {results}=await listSubmissions(before);return Response.json({entries:results.slice(0,15),hasMore:results.length>15},{headers:{'Cache-Control':'no-store'}});}catch{return Response.json({error:'Submission history is unavailable. Retry shortly.'},{status:503});}}
