@@ -1,0 +1,59 @@
+name: Publish GitHub Pages
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pages/**'
+      - '.github/workflows/github-pages.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import standalone Pages source on first run
+        run: |
+          if [ ! -f pages/package.json ]; then
+            tar -xzf apeshit-pages-source.tar.gz
+            printf 'export default { plugins: [] };\n' > pages/postcss.config.mjs
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add pages README.md
+            git commit -m "Add standalone GitHub Pages application"
+            git push
+          fi
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pages/pnpm-lock.yaml
+      - name: Install locked dependencies
+        working-directory: pages
+        run: pnpm install --frozen-lockfile
+      - name: Build the static website
+        working-directory: pages
+        run: pnpm build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages/dist
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
